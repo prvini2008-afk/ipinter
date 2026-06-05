@@ -1977,6 +1977,46 @@
        A tabela "ebd_chamadas" permanece dedicada à EBD (turma_id, aluno_id).
     ===================================================================== */
 
+    // Lixeira / Recycle Bin Helper Function 
+    async function excluirParaLixeira(tabela, id) {
+      try {
+        const { data: item, error: fetchErr } = await supabase.from(tabela).select('*').eq('id', id).single();
+        if (fetchErr) throw fetchErr;
+        if (!item) throw new Error('Registro não encontrado.');
+        const { error: insertErr } = await supabase.from('lixeira').insert([{
+          tabela: tabela,
+          dados: item
+        }]);
+        if (insertErr) {
+          throw new Error('Não foi possível salvar na lixeira. Certifique-se de executar o script SQL para criar a tabela "lixeira" no Supabase. Erro: ' + insertErr.message);
+        }
+        return true;
+      } catch (err) {
+        console.error('Erro na lixeira:', err);
+        throw err;
+      }
+    }
+
+    // ===== UTILITÁRIO: normalização de acentos =====
+    function removerAcentos(str) {
+      if (!str) return '';
+      return str.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+    }
+
+    // Cache global de pessoas (membros + visitantes) para busca/duplicidade
+    let _cachePessoas = []; // [{id, nome, tabela}]
+
+    async function carregarCachePessoas() {
+      const [{ data: mem }, { data: vis }] = await Promise.all([
+        supabase.from('membros').select('id, nome'),
+        supabase.from('visitantes').select('id, nome, tipo')
+      ]);
+      _cachePessoas = [
+        ...(mem || []).map(p => ({ ...p, tabela: 'membros' })),
+        ...(vis || []).map(p => ({ ...p, tabela: 'visitantes' }))
+      ];
+    }
+
 // Ícones SVG globais (usados em várias funções)
 const SVG_TRASH = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>';
 const SVG_EDIT = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>';
@@ -2029,6 +2069,18 @@ const SVG_WPP = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stro
         btnLogin.disabled = true;
       }
 
+      // Timeout de 30 segundos para não travar o botão no celular
+      const timeoutId = setTimeout(() => {
+        if (btnLogin && btnLogin.disabled) {
+          btnLogin.textContent = 'Entrar';
+          btnLogin.disabled = false;
+          if (erroEl) {
+            erroEl.textContent = 'O servidor demorou muito para responder. Verifique sua conexão e tente novamente.';
+            erroEl.style.display = 'block';
+          }
+        }
+      }, 30000);
+
       try {
         await login(
           document.getElementById('login-email').value,
@@ -2036,7 +2088,7 @@ const SVG_WPP = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stro
         );
 
         const emailVal = document.getElementById('login-email').value.trim().toLowerCase();
-        localStorage.setItem('lembrar_email', emailVal);
+        try { localStorage.setItem('lembrar_email', emailVal); } catch(e) {}
         
         // Carrega o sistema
         await iniciar();
@@ -2046,10 +2098,11 @@ const SVG_WPP = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stro
       } catch (e) {
         console.error('❌ Erro:', e);
         if (erroEl) {
-          erroEl.textContent = e.message;
+          erroEl.textContent = e.message || 'Erro desconhecido ao entrar. Tente novamente.';
           erroEl.style.display = 'block';
         }
       } finally {
+        clearTimeout(timeoutId);
         if (btnLogin) {
           btnLogin.textContent = 'Entrar';
           btnLogin.disabled = false;
@@ -2072,9 +2125,11 @@ const SVG_WPP = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stro
         });
       }
 
-      // Lembrar email
-      const salvo = localStorage.getItem('lembrar_email');
-      if (salvo && emailEl) emailEl.value = salvo;
+      // Lembrar email (com try-catch para ambientes que bloqueiam localStorage)
+      try {
+        const salvo = localStorage.getItem('lembrar_email');
+        if (salvo && emailEl) emailEl.value = salvo;
+      } catch(e) {}
 
       // Auto-login: verifica se existe sessão ativa no Supabase Auth
       supabase.auth.getSession().then(async ({ data: { session } }) => {
@@ -2087,16 +2142,16 @@ const SVG_WPP = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stro
             .single();
           if (perfData) {
             perfilAtual = perfData.perfil;
-            localStorage.setItem('perfil', perfilAtual);
-            localStorage.setItem('pode_editar', perfData.pode_editar !== false ? '1' : '0');
+            try { localStorage.setItem('perfil', perfilAtual); } catch(e) {}
+            try { localStorage.setItem('pode_editar', perfData.pode_editar !== false ? '1' : '0'); } catch(e) {}
             await iniciar();
           }
         } else {
           // Sem sessão: limpa qualquer cache antigo
-          localStorage.removeItem('perfil');
-          localStorage.removeItem('pode_editar');
+          try { localStorage.removeItem('perfil'); } catch(e) {}
+          try { localStorage.removeItem('pode_editar'); } catch(e) {}
         }
-      });
+      }).catch(e => console.warn('Erro na verificação de sessão:', e));
 
       console.log('✅ Botão de login configurado');
     });
@@ -2237,7 +2292,11 @@ const perfilModulos = {
         <div id="m-tab-pessoais" class="m-tab-content ativo">
           <div class="form-grid">
             <h4 class="form-section-title">Informações Básicas</h4>
-            <div class="form-group full"><label>Nome completo *</label><input id="m-nome" placeholder="Nome completo"></div>
+            <div class="form-group full">
+              <label>Nome completo *</label>
+              <input id="m-nome" placeholder="Nome completo" autocomplete="off" oninput="window._m.verificarDuplicidade()">
+              <div id="m-nome-avisos" style="margin-top:6px; display:none;"></div>
+            </div>
             <div class="form-group"><label>Email</label><input id="m-email" type="email" placeholder="email@exemplo.com"></div>
             <div class="form-group"><label>Celular / WhatsApp</label><input id="m-celular" placeholder="(11) 91234-5678"></div>
             <div class="form-group"><label>Telefone fixo / Recado</label><input id="m-telefone" placeholder="(11) 3234-5678"></div>
@@ -2332,46 +2391,48 @@ const perfilModulos = {
         <h3 id="modal-fornecedor-titulo">Novo Fornecedor</h3>
         <button class="btn-fechar" onclick="window._m.fecharModalF()"></button>
       </div>
-      <div class="form-grid">
-        <h4 class="form-section-title">Dados do Fornecedor</h4>
-        <div class="form-group full"><label>Nome / Razão Social *</label><input id="f-nome" placeholder="Nome do fornecedor"></div>
-        <div class="form-group"><label>Celular / WhatsApp</label><input id="f-celular" placeholder="(00) 00000-0000"></div>
-        <div class="form-group"><label>Telefone</label><input id="f-telefone" placeholder="(00) 0000-0000"></div>
-        <div class="form-group full"><label>Email</label><input id="f-email" type="email" placeholder="email@exemplo.com"></div>
+      <div class="modal-body-scroll">
+        <div class="form-grid">
+          <h4 class="form-section-title">Dados do Fornecedor</h4>
+          <div class="form-group full"><label>Nome / Razão Social *</label><input id="f-nome" placeholder="Nome do fornecedor"></div>
+          <div class="form-group"><label>Celular / WhatsApp</label><input id="f-celular" placeholder="(00) 00000-0000"></div>
+          <div class="form-group"><label>Telefone</label><input id="f-telefone" placeholder="(00) 0000-0000"></div>
+          <div class="form-group full"><label>Email</label><input id="f-email" type="email" placeholder="email@exemplo.com"></div>
 
-        <h4 class="form-section-title">Categoria de Gasto Padrão</h4>
-        <div class="form-group full"><label>Categoria</label>
-          <select id="f-categoria">
-            <option value="">Selecione a categoria</option>
-            <optgroup label="2.1 - SUSTENTO PASTORAL">
-              <option>13º Salário</option><option>Água</option><option>Aluguel</option>
-              <option>Combustível</option><option>Côngrua</option><option>Energia</option>
-              <option>FAP</option><option>Férias</option><option>INSS</option>
-              <option>IPTU</option><option>IRRF PASTORAL</option><option>Plano de Saúde</option>
-            </optgroup>
-            <optgroup label="2.2 - CAUSAS LOCAIS">
-              <option>Água</option><option>Contador</option><option>Encargos bancários</option>
-              <option>Energia</option><option>Gás</option><option>Internet</option>
-              <option>Ministérios</option><option>Outros</option><option>Papelaria</option>
-              <option>Preletores</option><option>Retiros e eventos</option>
-              <option>Supermercado</option><option>Zeladoria</option>
-            </optgroup>
-            <optgroup label="MOVIMENTAÇÃO FINANCEIRA">
-              <option>Aplicações</option><option>Impostos e taxas</option>
-            </optgroup>
-            <optgroup label="2.4 - PATRIMÔNIO">
-              <option>Aquisição de bens</option><option>Construção / Manutenção</option>
-              <option>Equipamentos / Móveis</option>
-            </optgroup>
-            <optgroup label="2.5 - EVANGELIZAÇÃO">
-              <option>Missões</option><option>Evangelismo local</option><option>Ação Social</option>
-            </optgroup>
-            <optgroup label="2.6 - VERBA PRESBITERIAL">
-              <option>Verba Presbiterial</option>
-            </optgroup>
-          </select>
+          <h4 class="form-section-title">Categoria de Gasto Padrão</h4>
+          <div class="form-group full"><label>Categoria</label>
+            <select id="f-categoria">
+              <option value="">Selecione a categoria</option>
+              <optgroup label="2.1 - SUSTENTO PASTORAL">
+                <option>13º Salário</option><option>Água</option><option>Aluguel</option>
+                <option>Combustível</option><option>Côngrua</option><option>Energia</option>
+                <option>FAP</option><option>Férias</option><option>INSS</option>
+                <option>IPTU</option><option>IRRF PASTORAL</option><option>Plano de Saúde</option>
+              </optgroup>
+              <optgroup label="2.2 - CAUSAS LOCAIS">
+                <option>Água</option><option>Contador</option><option>Encargos bancários</option>
+                <option>Energia</option><option>Gás</option><option>Internet</option>
+                <option>Ministérios</option><option>Outros</option><option>Papelaria</option>
+                <option>Preletores</option><option>Retiros e eventos</option>
+                <option>Supermercado</option><option>Zeladoria</option>
+              </optgroup>
+              <optgroup label="MOVIMENTAÇÃO FINANCEIRA">
+                <option>Aplicações</option><option>Impostos e taxas</option>
+              </optgroup>
+              <optgroup label="2.4 - PATRIMÔNIO">
+                <option>Aquisição de bens</option><option>Construção / Manutenção</option>
+                <option>Equipamentos / Móveis</option>
+              </optgroup>
+              <optgroup label="2.5 - EVANGELIZAÇÃO">
+                <option>Missões</option><option>Evangelismo local</option><option>Ação Social</option>
+              </optgroup>
+              <optgroup label="2.6 - VERBA PRESBITERIAL">
+                <option>Verba Presbiterial</option>
+              </optgroup>
+            </select>
+          </div>
+          <div class="form-group full"><label>Descrição / Observação</label><textarea id="f-descricao" rows="3" placeholder="Descreva o tipo de serviço ou gasto deste fornecedor..."></textarea></div>
         </div>
-        <div class="form-group full"><label>Descrição / Observação</label><textarea id="f-descricao" rows="3" placeholder="Descreva o tipo de serviço ou gasto deste fornecedor..."></textarea></div>
       </div>
       <div class="modal-footer">
         <button class="btn-secondary" onclick="window._m.fecharModalF()">Cancelar</button>
@@ -2871,9 +2932,10 @@ if (p.conjuge_id) {
     async function MembrosExcluir(id, nome) {
       if (!confirm(`Tem certeza que deseja excluir "${nome}"?`)) return;
       try {
+        await excluirParaLixeira('membros', id);
         const { error } = await supabase.from('membros').delete().eq('id', id);
         if (error) throw new Error(error.message);
-        alert('MEMBRO excluído com sucesso!');
+        alert('Membro enviado para a lixeira!');
         await MembrosCarregar();
       } catch (error) {
         console.error('Erro ao excluir MEMBRO:', error);
@@ -2883,9 +2945,10 @@ if (p.conjuge_id) {
     async function visitantesExcluir(id, nome) {
       if (!confirm(`Excluir o visitante "${nome}"? Isso não removerá os lançamentos financeiros dele.`)) return;
       try {
+        await excluirParaLixeira('visitantes', id);
         const { error } = await supabase.from('visitantes').delete().eq('id', id);
         if (error) throw error;
-        alert('Visitante removido!');
+        alert('Visitante enviado para a lixeira!');
         await MembrosCarregar();
       } catch (error) {
         console.error('Erro ao excluir visitante:', error);
@@ -4524,6 +4587,18 @@ async function finCarregarSugestões() {
   _finMembros = [...(m || []).map(x => ({ ...x, t: 'MEMBRO' })), ...(v || []).map(x => ({ ...x, t: x.tipo || 'Visitante' }))];
   const dl = document.getElementById('lista-sugestões-Membros');
   if (dl) dl.innerHTML = _finMembros.map(m => `<option value="${m.nome}">${m.t}</option>`).join('');
+
+  // Correcção automática de acentos no campo contribuinte/fornecedor
+  const contrib = document.getElementById('fin-contribuinte');
+  if (contrib && !contrib._acentoListenerAdded) {
+    contrib._acentoListenerAdded = true;
+    contrib.addEventListener('change', () => {
+      const digitado = removerAcentos(contrib.value);
+      if (!digitado) return;
+      const match = _finMembros.find(p => removerAcentos(p.nome) === digitado);
+      if (match && contrib.value !== match.nome) contrib.value = match.nome;
+    });
+  }
 }
 
 function finToggleDescricao() {
@@ -4565,6 +4640,12 @@ function finToggleDescricao() {
       if (valorAntigo) input.value = valorAntigo;
       container.replaceChild(input, campoAtual);
     }
+  }
+
+  // Troca o rótulo do campo de contribuinte/fornecedor de acordo com o tipo
+  const lblContrib = document.getElementById('fin-lbl-contribuinte');
+  if (lblContrib) {
+    lblContrib.textContent = (tipo === 'saida') ? 'FORNECEDOR / FAVORECIDO' : 'CONTRIBUINTE / MEMBRO (Nome)';
   }
 
   // Atualiza categorias
@@ -4682,20 +4763,47 @@ async function finSalvar() {
   try {
     let membro_id = null, visitante_id = null;
     if (nomeCont) {
-      const norm = nomeCont.trim().toLowerCase();
-      const { data: membros } = await supabase.from('membros').select('id, nome');
-      const { data: visitantes } = await supabase.from('visitantes').select('id, nome');
-      const encontrado = [...(membros || []), ...(visitantes || [])].find(p => p.nome.trim().toLowerCase() === norm);
-      if (encontrado) {
-        if (membros?.some(m => m.id === encontrado.id)) membro_id = encontrado.id;
-        else visitante_id = encontrado.id;
+      // Usa removerAcentos para comparação insensível a acentos
+      const normDigitado = removerAcentos(nomeCont);
+
+      // Primeiro tenta no cache já carregado (mais rápido)
+      let encontradoCache = _finMembros.find(p => removerAcentos(p.nome) === normDigitado);
+
+      // Se não achou, busca direto no banco
+      let membro_id_cache = null, visitante_id_cache = null;
+      if (encontradoCache) {
+        if (encontradoCache.t === 'MEMBRO') membro_id_cache = encontradoCache.id;
+        else visitante_id_cache = encontradoCache.id;
+      }
+
+      if (!encontradoCache) {
+        // Busca sem cache (fallback)
+        const { data: membros } = await supabase.from('membros').select('id, nome');
+        const { data: visitantes } = await supabase.from('visitantes').select('id, nome');
+        const todos = [...(membros || []), ...(visitantes || [])];
+        const encontrado = todos.find(p => removerAcentos(p.nome) === normDigitado);
+        if (encontrado) {
+          if (membros?.some(m => m.id === encontrado.id)) membro_id = encontrado.id;
+          else visitante_id = encontrado.id;
+          // Corrige o campo com o nome correto (com acento)
+          document.getElementById('fin-contribuinte').value = encontrado.nome;
+        } else {
+          const { data: novoV, error: errV } = await supabase
+            .from('visitantes')
+            .insert([{ nome: nomeCont, tipo: tipo === 'saida' ? 'Fornecedor' : 'Visitante' }])
+            .select().single();
+          if (errV) throw errV;
+          visitante_id = novoV.id;
+          // Atualiza cache
+          _finMembros.push({ id: novoV.id, nome: nomeCont, t: tipo === 'saida' ? 'Fornecedor' : 'Visitante' });
+        }
       } else {
-        const { data: novoV, error: errV } = await supabase
-          .from('visitantes')
-          .insert([{ nome: nomeCont, tipo: tipo === 'saida' ? 'Fornecedor' : 'Visitante' }])
-          .select().single();
-        if (errV) throw errV;
-        visitante_id = novoV.id;
+        membro_id = membro_id_cache;
+        visitante_id = visitante_id_cache;
+        // Corrige o campo com o nome correto (com acento)
+        if (encontradoCache.nome !== nomeCont) {
+          document.getElementById('fin-contribuinte').value = encontradoCache.nome;
+        }
       }
     }
 
@@ -4877,9 +4985,10 @@ async function finEditar(id) {
 async function finExcluir(id) {
   if (!confirm('Excluir lançamento financeiro?')) return;
   try {
+    await excluirParaLixeira('lancamentos', id);
     const { error } = await supabase.from('lancamentos').delete().eq('id', id);
     if (error) throw error;
-    alert('Lançamento excluído!');
+    alert('Lançamento enviado para a lixeira!');
     finCarregar();
   } catch (error) {
     alert('Erro ao excluir: ' + error.message);
@@ -4929,21 +5038,23 @@ function finRenderizar(c) {
     <div id="modal-lancamento" class="modal hidden">
       <div class="modal-box">
         <div class="modal-header"><h3 id="modal-fin-titulo">Novo lançamento</h3><button class="btn-fechar" onclick="window._fin.fecharModal()">✖</button></div>
-        <div class="form-grid">
-          <div class="form-group"><label>Tipo *</label><select id="fin-tipo" onchange="window._fin.toggleDescricao()"><option value="entrada">Entrada</option><option value="saida">Saída</option></select></div>
-          <div class="form-group"><label>Data *</label><input id="fin-data" type="date" value="${new Date().toISOString().slice(0, 10)}"></div>
-          <div class="form-group full" id="fin-grp-descricao"><label id="fin-desc-label">Forma de Contribuição</label><select id="fin-descricao" style="width:100%"><option value="">Selecione a forma de contribuição</option><option>Pix</option><option>Dinheiro</option><option>Transferência bancária</option><option>Depósito</option><option>Cheque</option><option>Cartão de Crédito</option><option>Cartão de Débito</option><option>Boleto</option><option>Outros</option></select></div>
-          <div class="form-group"><label>Tipo de Repetição</label><select id="fin-repeticao" onchange="window._fin.toggleRepeticao()"><option value="único">Lançamento único</option><option value="parcelado">Parcelado</option><option value="fixo">Mensal Fixo</option></select></div>
-          <div class="form-group" id="fin-grp-qtd" style="display:none"><label id="fin-lbl-qtd">Nº Parcelas</label><input id="fin-qtd" type="number" min="2" value="2"></div>
-          <div class="form-group full"><label>Conta *</label><select id="fin-conta"><option value="Caixa">Caixa (Gazofilácio)</option><option value="Banco">Banco (Depósito Direto)</option></select></div>
-          <div class="form-group full"><label id="fin-lbl-contribuinte">CONTRIBUINTE / MEMBRO (Nome)</label><input id="fin-contribuinte" list="lista-sugestões-Membros" placeholder="Comece a digitar o nome..."><datalist id="lista-sugestões-Membros"></datalist><div id="msg-contribuinte" style="font-size:0.75rem"></div></div>
-          <div class="form-group full" style="border: 1px solid var(--cinza-2); padding: 10px; border-radius: 8px; background: var(--cinza-1);">
-            <label style="margin-bottom: 10px; display: block; font-weight: 600;">Lançamentos de Valores</label>
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px;"><input id="fin-valor-1" type="number" step="0.01" placeholder="Valor 1 (R$)"><select id="fin-cat-1"></select></div>
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px;"><input id="fin-valor-2" type="number" step="0.01" placeholder="Valor 2 (R$)"><select id="fin-cat-2"></select></div>
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;"><input id="fin-valor-3" type="number" step="0.01" placeholder="Valor 3 (R$)"><select id="fin-cat-3"></select></div>
+        <div class="modal-body-scroll">
+          <div class="form-grid">
+            <div class="form-group"><label>Tipo *</label><select id="fin-tipo" onchange="window._fin.toggleDescricao()"><option value="entrada">Entrada</option><option value="saida">Saída</option></select></div>
+            <div class="form-group"><label>Data *</label><input id="fin-data" type="date" value="${new Date().toISOString().slice(0, 10)}"></div>
+            <div class="form-group full" id="fin-grp-descricao"><label id="fin-desc-label">Forma de Contribuição</label><select id="fin-descricao" style="width:100%"><option value="">Selecione a forma de contribuição</option><option>Pix</option><option>Dinheiro</option><option>Transferência bancária</option><option>Depósito</option><option>Cheque</option><option>Cartão de Crédito</option><option>Cartão de Débito</option><option>Boleto</option><option>Outros</option></select></div>
+            <div class="form-group"><label>Tipo de Repetição</label><select id="fin-repeticao" onchange="window._fin.toggleRepeticao()"><option value="único">Lançamento único</option><option value="parcelado">Parcelado</option><option value="fixo">Mensal Fixo</option></select></div>
+            <div class="form-group" id="fin-grp-qtd" style="display:none"><label id="fin-lbl-qtd">Nº Parcelas</label><input id="fin-qtd" type="number" min="2" value="2"></div>
+            <div class="form-group full"><label>Conta *</label><select id="fin-conta"><option value="Caixa">Caixa (Gazofilácio)</option><option value="Banco">Banco (Depósito Direto)</option></select></div>
+            <div class="form-group full"><label id="fin-lbl-contribuinte">CONTRIBUINTE / MEMBRO (Nome)</label><input id="fin-contribuinte" list="lista-sugestões-Membros" placeholder="Comece a digitar o nome..."><datalist id="lista-sugestões-Membros"></datalist><div id="msg-contribuinte" style="font-size:0.75rem"></div></div>
+            <div class="form-group full" style="border: 1px solid var(--cinza-2); padding: 10px; border-radius: 8px; background: var(--cinza-1);">
+              <label style="margin-bottom: 10px; display: block; font-weight: 600;">Lançamentos de Valores</label>
+              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px;"><input id="fin-valor-1" type="number" step="0.01" placeholder="Valor 1 (R$)"><select id="fin-cat-1"></select></div>
+              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px;"><input id="fin-valor-2" type="number" step="0.01" placeholder="Valor 2 (R$)"><select id="fin-cat-2"></select></div>
+              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;"><input id="fin-valor-3" type="number" step="0.01" placeholder="Valor 3 (R$)"><select id="fin-cat-3"></select></div>
+            </div>
+            <div class="form-group full"><label>Observações</label><input id="fin-obs" placeholder="Detalhes adicionais"></div>
           </div>
-          <div class="form-group full"><label>Observações</label><input id="fin-obs" placeholder="Detalhes adicionais"></div>
         </div>
         <div class="modal-footer"><button class="btn-secondary" onclick="window._fin.fecharModal()">Cancelar</button><button class="btn-primary" onclick="window._fin.salvar()">Salvar</button></div>
       </div>
@@ -4979,6 +5090,7 @@ window._fin = {
           ${temPermissao('config') ? `<button class="config-tab-btn ${(_cfgTab === 'geral' ? 'ativo' : '')}" onclick="window._cfg.mudarAba('geral')"> Geral</button>` : ''}
           ${temPermissao('usuarios') ? `<button class="config-tab-btn ${(_cfgTab === 'usuarios' ? 'ativo' : '')}" onclick="window._cfg.mudarAba('usuarios')"> Usuários</button>` : ''}
           ${temPermissao('config') ? `<button class="config-tab-btn ${(_cfgTab === 'manutencao' ? 'ativo' : '')}" onclick="window._cfg.mudarAba('manutencao')"> Manutenção</button>` : ''}
+          ${temPermissao('config') ? `<button class="config-tab-btn ${(_cfgTab === 'lixeira' ? 'ativo' : '')}" onclick="window._cfg.mudarAba('lixeira')"> Lixeira</button>` : ''}
         </div>
 
         <div id="cfg-conteudo-aba"></div>
@@ -5179,8 +5291,21 @@ window._fin = {
       }
     };
 
-    carregarUsuarios();
   } 
+  else if (_cfgTab === 'lixeira') {
+    container.innerHTML = `
+      <div class="maintenance-box">
+        <div class="maintenance-item" style="border-top: 4px solid var(--primary-light);">
+          <h4>Lixeira do Sistema</h4>
+          <p class="hint">Recupere ou exclua permanentemente lançamentos, membros e visitantes que foram apagados.</p>
+          <div id="lixeira-lista" style="margin-top:16px"></div>
+        </div>
+      </div>
+    `;
+    setTimeout(() => {
+      lixeiraCarregar();
+    }, 50);
+  }
   else {  // MANUTENÇÃO
     container.innerHTML = `
       <div class="maintenance-box">
@@ -5611,7 +5736,152 @@ async function cfgExecutarReassociacao() {
   cfgAbrirCorrecaoNomes(); // recarrega a interface
 }
 
-    window._cfg = { renderizar: configuracoesRenderizar, mudarAba: configuracoesMudarAba, analisar: configuracoesAnalise, executar: configuracoesExecutar, salvar: configuracoesSalvar, carregarUsuarios, togglePermissao, excluirUsu, atualizarCheckboxesPorPerfil, editarUsu, abrirCorrecaoNomes: cfgAbrirCorrecaoNomes, executarReassociacao: cfgExecutarReassociacao };
+// ========== SISTEMA DE LIXEIRA (RECYCLE BIN) ==========
+async function lixeiraCarregar() {
+  const container = document.getElementById('lixeira-lista');
+  if (!container) return;
+  
+  container.innerHTML = '<div class="vazio-central"><p>Carregando itens da lixeira...</p></div>';
+  try {
+    const { data, error } = await supabase.from('lixeira').select('*').order('deleted_at', { ascending: false });
+    if (error) throw error;
+    
+    if (!data || data.length === 0) {
+      container.innerHTML = '<p class="vazio" style="padding:20px; text-align:center;">A lixeira está vazia.</p>';
+      return;
+    }
+    
+    const fmtMoeda = v => Number(v).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+    const fd = d => d ? new Date(d).toLocaleString('pt-BR') : '';
+    const fdt = d => d ? d.split('-').reverse().join('/') : '';
+    
+    container.innerHTML = `
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; flex-wrap:wrap; gap:10px;">
+        <span class="hint" style="font-weight:600;">${data.length} item(ns) na lixeira</span>
+        <button class="btn-secondary btn-danger" onclick="window._cfg.lixeiraEsvaziar()" style="font-size:0.8rem; padding: 6px 12px; display:inline-flex; align-items:center; gap:4px;">🗑️ Esvaziar Lixeira</button>
+      </div>
+      <div style="overflow-x:auto;">
+        <table class="tabela">
+          <thead>
+            <tr>
+              <th style="padding:10px;">TIPO</th>
+              <th style="padding:10px;">DETALHES DO ITEM</th>
+              <th style="padding:10px;">DELETADO EM</th>
+              <th style="padding:10px;">AÇÕES</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${data.map(item => {
+              let desc = '';
+              let tipoLabel = '';
+              let badgeColor = '';
+              
+              if (item.tabela === 'lancamentos') {
+                tipoLabel = 'Lançamento';
+                badgeColor = '#3b82f6';
+                const d = item.dados;
+                const valorFmt = fmtMoeda(d.valor);
+                const tipoFmt = d.tipo === 'entrada' ? 'Entrada' : 'Saída';
+                desc = `<strong>[${tipoFmt}]</strong> ${d.descricao || ''} - <strong style="color:${d.tipo === 'entrada' ? '#10b981' : '#ef4444'}">${valorFmt}</strong> (Ref: ${fdt(d.data)})`;
+              } else if (item.tabela === 'membros') {
+                tipoLabel = 'Membro';
+                badgeColor = '#10b981';
+                const d = item.dados;
+                desc = `<strong>${d.nome}</strong> (${d.email || 'Sem email'}) - Celular: ${d.celular || 'Não cadastrado'}`;
+              } else if (item.tabela === 'visitantes') {
+                tipoLabel = 'Visitante';
+                badgeColor = '#f59e0b';
+                const d = item.dados;
+                desc = `<strong>${d.nome}</strong> (${d.tipo || 'Visitante'}) - Categoria padrão de gastos ou contatos`;
+              } else {
+                tipoLabel = item.tabela;
+                badgeColor = '#6b7280';
+                desc = JSON.stringify(item.dados);
+              }
+              
+              const svgRestore = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>';
+              const svgTrash = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>';
+              
+              return `
+                <tr>
+                  <td style="padding:10px;"><span class="badge" style="background:${badgeColor}; color:white; margin:0;">${tipoLabel}</span></td>
+                  <td style="padding:10px; font-size:0.9rem;">${desc}</td>
+                  <td style="padding:10px; font-size:0.85rem; color:#666;">${fd(item.deleted_at)}</td>
+                  <td style="padding:10px; white-space:nowrap;">
+                    <button class="btn-icon" title="Restaurar" onclick="window._cfg.lixeiraRestaurar('${item.id}')" style="color:#10b981; border: 1px solid #10b981; background:transparent; padding: 4px; border-radius: 4px; display:inline-flex; align-items:center; justify-content:center;">
+                      ${svgRestore}
+                    </button>
+                    <button class="btn-icon btn-danger" title="Excluir Permanentemente" onclick="window._cfg.lixeiraExcluirPermanente('${item.id}')" style="border: 1px solid #ef4444; background:transparent; padding: 4px; border-radius: 4px; display:inline-flex; align-items:center; justify-content:center; margin-left: 6px;">
+                      ${svgTrash}
+                    </button>
+                  </td>
+                </tr>
+              `;
+            }).join('')}
+          </tbody>
+        </table>
+      </div>
+    `;
+  } catch (error) {
+    container.innerHTML = `<div class="erro">Erro ao carregar lixeira: ${error.message}</div>`;
+  }
+}
+
+async function lixeiraRestaurar(id) {
+  if (!confirm('Deseja restaurar este item para a tabela original?')) return;
+  try {
+    const { data: item, error: fetchErr } = await supabase.from('lixeira').select('*').eq('id', id).single();
+    if (fetchErr) throw fetchErr;
+    if (!item) throw new Error('Item não encontrado na lixeira.');
+    
+    // Restaurar na tabela original
+    const { error: insertErr } = await supabase.from(item.tabela).insert([item.dados]);
+    if (insertErr) throw insertErr;
+    
+    // Deletar da lixeira
+    const { error: deleteErr } = await supabase.from('lixeira').delete().eq('id', id);
+    if (deleteErr) throw deleteErr;
+    
+    alert('Item restaurado com sucesso!');
+    lixeiraCarregar();
+    
+    // Recarregar os módulos específicos caso estejam abertos
+    if (item.tabela === 'lancamentos' && window._fin && typeof window._fin.carregar === 'function') {
+      window._fin.carregar();
+    }
+    if ((item.tabela === 'membros' || item.tabela === 'visitantes') && typeof MembrosCarregar === 'function') {
+      await MembrosCarregar();
+    }
+  } catch (error) {
+    alert('Erro ao restaurar item: ' + error.message);
+  }
+}
+
+async function lixeiraExcluirPermanente(id) {
+  if (!confirm('Tem certeza que deseja excluir este item PERMANENTEMENTE? Esta ação não poderá ser desfeita.')) return;
+  try {
+    const { error } = await supabase.from('lixeira').delete().eq('id', id);
+    if (error) throw error;
+    alert('Item excluído permanentemente!');
+    lixeiraCarregar();
+  } catch (error) {
+    alert('Erro ao excluir: ' + error.message);
+  }
+}
+
+async function lixeiraEsvaziar() {
+  if (!confirm('Deseja realmente esvaziar toda a lixeira? Todos os itens serão apagados permanentemente.')) return;
+  try {
+    const { error } = await supabase.from('lixeira').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+    if (error) throw error;
+    alert('Lixeira esvaziada!');
+    lixeiraCarregar();
+  } catch (error) {
+    alert('Erro ao esvaziar lixeira: ' + error.message);
+  }
+}
+
+    window._cfg = { renderizar: configuracoesRenderizar, mudarAba: configuracoesMudarAba, analisar: configuracoesAnalise, executar: configuracoesExecutar, salvar: configuracoesSalvar, carregarUsuarios, togglePermissao, excluirUsu, atualizarCheckboxesPorPerfil, editarUsu, abrirCorrecaoNomes: cfgAbrirCorrecaoNomes, executarReassociacao: cfgExecutarReassociacao, lixeiraCarregar, lixeiraRestaurar, lixeiraExcluirPermanente, lixeiraEsvaziar };
 
     //  ROTEADOR 
     const modulos = [
@@ -6115,8 +6385,15 @@ async function cfgExecutarReassociacao() {
    async function iniciar() {
   console.log('🚀 Iniciando sistema...');
   try {
-    const perfil = localStorage.getItem('perfil');
-    if (!perfil) return;
+    // Usa a variável de módulo perfilAtual como fonte primária.
+    // localStorage é apenas um fallback (pode falhar em celulares com restrições de privacidade).
+    const perfil = perfilAtual || (() => { try { return localStorage.getItem('perfil'); } catch(e) { return null; } })();
+    if (!perfil) {
+      console.warn('⚠️ iniciar() chamado sem perfil definido.');
+      return;
+    }
+    // Garante que perfilAtual está sempre sincronizado
+    if (!perfilAtual) perfilAtual = perfil;
 
     // 1. Libera a visualização da estrutura
     document.getElementById('tela-login').style.display = 'none';
