@@ -1878,6 +1878,27 @@
         gap: 8px !important;
       }
     }
+.ac-dropdown {
+  position: fixed;
+  background: white;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  max-height: 200px;
+  overflow-y: auto;
+  z-index: 10000;
+  min-width: 200px;
+}
+.ac-dropdown div {
+  padding: 8px 12px;
+  cursor: pointer;
+  font-size: 0.85rem;
+  color: #0f172a;
+}
+.ac-dropdown div:hover {
+  background: #f1f5f9;
+}
+
   </style>
 
 <body>
@@ -2001,6 +2022,85 @@
     function removerAcentos(str) {
       if (!str) return '';
       return str.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+    }
+
+    // ========== AUTOCOMPLETE CUSTOMIZADO (ignora acentos) ==========
+    function initCustomAutocomplete(input) {
+      if (!input || input.hasAttribute('data-ac-inited')) return;
+      const listId = input.getAttribute('list');
+      if (!listId) return;
+      const datalist = document.getElementById(listId);
+      if (!datalist) return;
+      
+      input.removeAttribute('list');
+      input.setAttribute('data-ac-inited', 'true');
+      let dropdown = null;
+      
+      function getOptions() {
+        return Array.from(datalist.options).map(opt => ({ value: opt.value, dataset: opt.dataset }));
+      }
+      
+      function showDropdown(filtered) {
+        if (dropdown) dropdown.remove();
+        dropdown = document.createElement('div');
+        dropdown.className = 'ac-dropdown';
+        const rect = input.getBoundingClientRect();
+        dropdown.style.position = 'fixed';
+        dropdown.style.top = (rect.bottom + window.scrollY) + 'px';
+        dropdown.style.left = (rect.left + window.scrollX) + 'px';
+        dropdown.style.width = Math.max(rect.width, 200) + 'px';
+        
+        if (filtered.length === 0) {
+          const msg = document.createElement('div');
+          msg.textContent = 'Nenhum resultado';
+          msg.style.color = '#94a3b8';
+          msg.style.fontStyle = 'italic';
+          msg.style.cursor = 'default';
+          dropdown.appendChild(msg);
+        } else {
+          filtered.forEach(opt => {
+            const item = document.createElement('div');
+            item.textContent = opt.value;
+            item.addEventListener('click', (e) => {
+              e.stopPropagation();
+              input.value = opt.value;
+              input.dispatchEvent(new Event('input', { bubbles: true }));
+              input.dispatchEvent(new Event('change', { bubbles: true }));
+              if (dropdown) dropdown.remove();
+              dropdown = null;
+            });
+            dropdown.appendChild(item);
+          });
+        }
+        document.body.appendChild(dropdown);
+      }
+      
+      function filterOptions() {
+        const term = removerAcentos(input.value);
+        const options = getOptions();
+        const filtered = options.filter(opt => removerAcentos(opt.value).includes(term));
+        if (filtered.length && term.length > 0) {
+          showDropdown(filtered);
+        } else if (dropdown) {
+          dropdown.remove();
+          dropdown = null;
+        }
+      }
+      
+      input.addEventListener('input', filterOptions);
+      input.addEventListener('blur', () => {
+        setTimeout(() => { if (dropdown) { dropdown.remove(); dropdown = null; } }, 200);
+      });
+      document.addEventListener('click', (e) => {
+        if (dropdown && !dropdown.contains(e.target) && e.target !== input) {
+          dropdown.remove();
+          dropdown = null;
+        }
+      });
+    }
+
+    function initAllAutocompletes() {
+      document.querySelectorAll('input[list]').forEach(inp => initCustomAutocomplete(inp));
     }
 
     // Cache global de pessoas (membros + visitantes) para busca/duplicidade
@@ -2663,6 +2763,7 @@ async function MembrosAbrirModal(id = null, ehVisitante = false) {
 
   _estadoInicial = JSON.stringify(MembrosObterDadosForm());
   document.getElementById('modal-MEMBRO').classList.remove('hidden');
+  initAllAutocompletes();
 }
 
    function preencherFormMembro(data) {
@@ -3849,7 +3950,7 @@ async function gruposAbrirModal(id = null) {
 
   form.innerHTML = formHtml;
   document.getElementById('modal-grupo').classList.remove('hidden');
-
+  initAllAutocompletes();
   if (g && g.id) {
       window._grp.carregarParticipantesModal(g.id);
   }
@@ -4581,21 +4682,49 @@ function finToggleRepeticao() {
   if (lbl) lbl.textContent = rep === 'parcelado' ? 'Nº Parcelas' : 'Nº de meses';
 }
 
-async function finCarregarSugestões() {
-  const { data: m } = await supabase.from('membros').select('id, nome');
-  const { data: v } = await supabase.from('visitantes').select('id, nome');
-  _finMembros = [...(m || []).map(x => ({ ...x, t: 'MEMBRO' })), ...(v || []).map(x => ({ ...x, t: x.tipo || 'Visitante' }))];
-  const dl = document.getElementById('lista-sugestões-Membros');
-  if (dl) dl.innerHTML = _finMembros.map(m => `<option value="${m.nome}">${m.t}</option>`).join('');
+async function finCarregarSugestões(tipo = null) {
+  // Se tipo não foi passado, tenta pegar do select
+  if (!tipo) {
+    const tipoSelect = document.getElementById('fin-tipo');
+    if (tipoSelect) tipo = tipoSelect.value;
+    else tipo = 'entrada';
+  }
 
-  // Correcção automática de acentos no campo contribuinte/fornecedor
+  let lista = [];
+  if (tipo === 'saida') {
+    // 🔥 Busca apenas fornecedores (visitantes com tipo = 'Fornecedor')
+    const { data: fornecedores } = await supabase
+      .from('visitantes')
+      .select('id, nome, tipo')
+      .eq('tipo', 'Fornecedor');
+    lista = (fornecedores || []).map(f => ({ id: f.id, nome: f.nome, t: 'FORNECEDOR' }));
+  } else {
+    // Busca membros + visitantes comuns (exceto fornecedores)
+    const { data: membros } = await supabase.from('membros').select('id, nome');
+    const { data: visitantes } = await supabase
+      .from('visitantes')
+      .select('id, nome, tipo')
+      .neq('tipo', 'Fornecedor');
+    lista = [
+      ...(membros || []).map(m => ({ id: m.id, nome: m.nome, t: 'MEMBRO' })),
+      ...(visitantes || []).map(v => ({ id: v.id, nome: v.nome, t: v.tipo || 'VISITANTE' }))
+    ];
+  }
+
+  _finMembros = lista;
+  const dl = document.getElementById('lista-sugestões-Membros');
+  if (dl) {
+    dl.innerHTML = lista.map(item => `<option value="${item.nome}" data-id="${item.id}" data-tipo="${item.t}">`).join('');
+  }
+
+  // Correção automática de acentos no campo
   const contrib = document.getElementById('fin-contribuinte');
   if (contrib && !contrib._acentoListenerAdded) {
     contrib._acentoListenerAdded = true;
     contrib.addEventListener('change', () => {
       const digitado = removerAcentos(contrib.value);
       if (!digitado) return;
-      const match = _finMembros.find(p => removerAcentos(p.nome) === digitado);
+      const match = lista.find(p => removerAcentos(p.nome) === digitado);
       if (match && contrib.value !== match.nome) contrib.value = match.nome;
     });
   }
@@ -4642,7 +4771,7 @@ function finToggleDescricao() {
     }
   }
 
-  // Troca o rótulo do campo de contribuinte/fornecedor de acordo com o tipo
+  // Troca o rótulo do campo de contribuinte/fornecedor
   const lblContrib = document.getElementById('fin-lbl-contribuinte');
   if (lblContrib) {
     lblContrib.textContent = (tipo === 'saida') ? 'FORNECEDOR / FAVORECIDO' : 'CONTRIBUINTE / MEMBRO (Nome)';
@@ -4655,6 +4784,9 @@ function finToggleDescricao() {
     const sel = document.getElementById(`fin-cat-${i}`);
     if (sel) sel.innerHTML = tipo === 'saida' ? opcoesSaida : opcoesEntrada;
   }
+
+  // 🔥 NOVO: recarrega as sugestões do campo de contribuinte/fornecedor conforme o tipo
+  finCarregarSugestões(tipo);
 }
 
 function finAbrirModal(id = null) {
@@ -4685,7 +4817,9 @@ function finAbrirModal(id = null) {
         if (!data) return;
         // 1. Define o tipo (entrada/saída)
         document.getElementById('fin-tipo').value = data.tipo;
-        // 2. Recria o campo descrição (select para entrada, input para saída)
+       finCarregarSugestões(data.tipo);
+
+ // 2. Recria o campo descrição (select para entrada, input para saída)
         finToggleDescricao();
         // 3. Preenche os campos básicos
         document.getElementById('fin-data').value = data.data?.slice(0, 10) || '';
@@ -4727,6 +4861,7 @@ function finAbrirModal(id = null) {
       .catch(err => console.error('Erro ao carregar lançamento:', err));
   }
   modal.classList.remove('hidden');
+  initAllAutocompletes();
 }
 
 function finFecharModal() {
@@ -5060,7 +5195,7 @@ function finRenderizar(c) {
       </div>
     </div>
   `;
-  finCarregarSugestões();
+  finCarregarSugestões('entrada');
   finCarregar();
 }
 
