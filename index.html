@@ -6712,7 +6712,7 @@ async function atualizarDatalistFamilia() {
                     }
                     @page {
                         size: portrait;
-                        margin: 1cm;
+                        margin: 0.7cm;
                     }
                     body, html {
                         background: white !important;
@@ -6738,47 +6738,89 @@ async function atualizarDatalistFamilia() {
                     .no-print, button, .sidebar, .topbar {
                         display: none !important;
                     }
+                    
+                    /* TABELA GERAL */
                     .tabela {
                         width: 100% !important;
-                        min-width: 100% !important;
+                        max-width: 100% !important;
                         border-collapse: collapse !important;
-                        margin-top: 10px !important;
-                        font-size: 9pt !important;
+                        margin-top: 8px !important;
+                        font-size: 7.5pt !important;
                         table-layout: fixed !important;
                     }
                     .tabela th, .tabela td {
                         border: 0.5pt solid #ccc !important;
-                        padding: 4pt 6pt !important;
+                        padding: 3pt 4pt !important;
                         word-wrap: break-word !important;
                         overflow: hidden !important;
+                        text-align: left !important;
+                        vertical-align: middle !important;
                     }
-                    /* Ajuste de larguras de colunas - Mais flexível para nomes */
+                    
+                    /* BALANCETE ANALÍTICO - 6 COLUNAS (incluindo VALOR) */
+                    table.tabela.balancete-analitico {
+                        table-layout: fixed !important;
+                        width: 100% !important;
+                    }
+                    table.tabela.balancete-analitico th:nth-child(1),
+                    table.tabela.balancete-analitico td:nth-child(1) {
+                        width: 11% !important;   /* DATA */
+                        white-space: nowrap !important;
+                    }
+                    table.tabela.balancete-analitico th:nth-child(2),
+                    table.tabela.balancete-analitico td:nth-child(2) {
+                        width: 26% !important;  /* CONTRIBUINTE/FORNECEDOR */
+                        white-space: normal !important;
+                    }
+                    table.tabela.balancete-analitico th:nth-child(3),
+                    table.tabela.balancete-analitico td:nth-child(3) {
+                        width: 15% !important;  /* CATEGORIA */
+                        white-space: normal !important;
+                    }
+                    table.tabela.balancete-analitico th:nth-child(4),
+                    table.tabela.balancete-analitico td:nth-child(4) {
+                        width: 26% !important;  /* DESCRIÇÃO */
+                        white-space: normal !important;
+                    }
+                    table.tabela.balancete-analitico th:nth-child(5),
+                    table.tabela.balancete-analitico td:nth-child(5) {
+                        width: 9% !important;   /* CONTA */
+                        white-space: nowrap !important;
+                    }
+                    table.tabela.balancete-analitico th:nth-child(6),
+                    table.tabela.balancete-analitico td:nth-child(6) {
+                        width: 13% !important;  /* VALOR */
+                        white-space: nowrap !important;
+                    }
+
+                    .balancete-analitico td:last-child { 
+                        text-align: right !important; 
+                        font-weight: 600 !important;
+                        white-space: nowrap !important;
+                    }
+
+                    /* TABELA DE MEMBROS */
                     .tabela th:nth-child(1) { width: 40% !important; }
                     .tabela th:nth-child(2) { width: 12% !important; }
                     .tabela th:nth-child(3) { width: 10% !important; }
                     .tabela th:nth-child(4) { width: 18% !important; }
-                    
-                    /* Se houver uma 5ª coluna (Cônjuge) */
                     .tabela th:nth-child(5) { width: 20% !important; }
-
-                    /* Caso específico de Balancete Analítico (Data, Pessoa, Categoria, Valor) */
-                    .balancete-analitico th:nth-child(1) { width: 80px !important; }
-                    .balancete-analitico th:nth-child(2) { width: auto !important; }
-                    .balancete-analitico th:nth-child(3) { width: 150px !important; }
-                    .balancete-analitico th:nth-child(4) { width: 100px !important; }
 
                     .print-header-bar {
                         display: block !important;
                         text-align: center;
-                        margin-bottom: 20px;
+                        margin-bottom: 12px;
                         border-bottom: 1.5pt solid #000;
-                        padding-bottom: 10px;
+                        padding-bottom: 6px;
                         width: 100% !important;
                     }
                     .print-header-bar h1 {
-                        font-size: 16pt !important;
+                        font-size: 13pt !important;
                         margin: 0 !important;
                         text-transform: uppercase;
+                    }
+                    .print-header-bar span {
+                        font-size: 9pt !important;
                     }
                     .section-bar {
                         display: block !important;
@@ -6786,21 +6828,33 @@ async function atualizarDatalistFamilia() {
                         background: #eee !important;
                         color: black !important;
                         font-weight: bold;
-                        padding: 5pt 8pt !important;
-                        margin: 15pt 0 5pt 0 !important;
-                        font-size: 10pt !important;
+                        padding: 4pt 8pt !important;
+                        margin: 10pt 0 4pt 0 !important;
+                        font-size: 8.5pt !important;
                         border: 0.5pt solid #ccc !important;
                     }
-                    .valor-cel { text-align: right !important; white-space: nowrap !important; }
+                    .section-bar.geral {
+                        background: #2c3e50 !important;
+                        color: white !important;
+                    }
+                    .valor-cel { 
+                        text-align: right !important; 
+                        white-space: nowrap !important; 
+                    }
                     .print-footer {
                         display: block !important;
                         position: fixed;
                         bottom: 0;
                         width: 100%;
                         text-align: center;
-                        font-size: 8pt;
+                        font-size: 7pt;
                         border-top: 0.5pt solid #eee;
-                        padding-top: 5px;
+                        padding-top: 4px;
+                    }
+                    
+                    /* Tabela de balanço geral */
+                    .tabela td:last-child {
+                        text-align: right !important;
                     }
                 }
                 
@@ -6826,6 +6880,49 @@ async function atualizarDatalistFamilia() {
                     border-radius: 4px;
                 }
                 .print-header-bar, .print-footer { display: none; }
+                
+                /* Estilo para a tabela de balancete na tela */
+                table.tabela.balancete-analitico {
+                    table-layout: fixed;
+                }
+                table.tabela.balancete-analitico th:nth-child(1),
+                table.tabela.balancete-analitico td:nth-child(1) {
+                    width: 11%;
+                    white-space: nowrap;
+                }
+                table.tabela.balancete-analitico th:nth-child(2),
+                table.tabela.balancete-analitico td:nth-child(2) {
+                    width: 26%;
+                }
+                table.tabela.balancete-analitico th:nth-child(3),
+                table.tabela.balancete-analitico td:nth-child(3) {
+                    width: 15%;
+                }
+                table.tabela.balancete-analitico th:nth-child(4),
+                table.tabela.balancete-analitico td:nth-child(4) {
+                    width: 26%;
+                }
+                table.tabela.balancete-analitico th:nth-child(5),
+                table.tabela.balancete-analitico td:nth-child(5) {
+                    width: 9%;
+                    white-space: nowrap;
+                }
+                table.tabela.balancete-analitico th:nth-child(6),
+                table.tabela.balancete-analitico td:nth-child(6) {
+                    width: 13%;
+                    white-space: nowrap;
+                }
+                .balancete-analitico td:last-child {
+                    font-weight: 600;
+                    text-align: right;
+                }
+                
+                /* Ajuste para coluna de valor na tela */
+                .tabela .valor-cel {
+                    text-align: right;
+                    font-weight: 600;
+                    white-space: nowrap;
+                }
         `;
         document.head.appendChild(style);
       }
@@ -7064,6 +7161,7 @@ async function atualizarDatalistFamilia() {
                     <div class="rep-card" onclick="window._rep.selecionarSub('extrato_individual')"><i data-lucide="user"></i><h4>Extrato Individual</h4></div>
                     <div class="rep-card" onclick="window._rep.selecionarSub('contribuicao_lideranca')"><i data-lucide="award"></i><h4>Por Liderança</h4></div>
                     <div class="rep-card" onclick="window._rep.selecionarSub('contribuicao_ministerio')"><i data-lucide="briefcase"></i><h4>Por Ministério</h4></div>
+                    <div class="rep-card" onclick="window._rep.selecionarSub('por_categoria')"><i data-lucide="tag"></i><h4>Por Categoria</h4></div>
                 </div>
             `;
         } else {
@@ -7228,6 +7326,70 @@ async function atualizarDatalistFamilia() {
         </div>
       `;
       break;
+        case 'todos':
+          titulo = 'Todos os Membros';
+          filtrosHTML = `
+                <p class="hint">Gera a lista completa de todos os membros cadastrados, sem filtros.</p>
+            `;
+          break;
+        case 'combinado':
+          titulo = 'Relatório Combinado de Membros';
+          filtrosHTML = `
+                <p class="hint" style="grid-column: 1 / -1; margin-bottom: 10px;">Combine quantos filtros quiser. Campos deixados em branco/"Todos" não restringem o resultado.</p>
+                <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap: 10px; width: 100%;">
+                    <div class="form-group"><label>Idade Mínima</label><input type="number" id="rc-idade-ini" placeholder="Ex: 0"></div>
+                    <div class="form-group"><label>Idade Máxima</label><input type="number" id="rc-idade-fim" placeholder="Ex: 150"></div>
+                    <div class="form-group"><label>Sexo</label>
+                        <select id="rc-sexo">
+                            <option value="">Todos</option>
+                            <option value="M">Masculino</option>
+                            <option value="F">Feminino</option>
+                        </select>
+                    </div>
+                    <div class="form-group"><label>Categoria</label>
+                        <select id="rc-categoria">
+                            <option value="">Todas</option>
+                            <option value="Comungante">Comungante</option>
+                            <option value="Não Comungante">Não Comungante</option>
+                        </select>
+                    </div>
+                    <div class="form-group"><label>Estado Civil</label>
+                        <select id="rc-civil">
+                            <option value="">Todos</option>
+                            <option>Solteiro(a)</option>
+                            <option>Casado(a)</option>
+                            <option>Divorciado(a)</option>
+                            <option>Viúvo(a)</option>
+                        </select>
+                    </div>
+                    <div class="form-group"><label>Modo de Admissão</label>
+                        <select id="rc-modo">
+                            <option value="">Todos</option>
+                            <option>Profissão de Fé</option>
+                            <option>Profissão de Fé e Batismo</option>
+                            <option>Batismo</option>
+                            <option>Carta de Transferência</option>
+                            <option>Jurisdição a Pedido</option>
+                            <option>Jurisdição Ex-Officio</option>
+                            <option>Restauração</option>
+                            <option>Designação</option>
+                        </select>
+                    </div>
+                    <div class="form-group"><label>Função / Liderança</label>
+                        <select id="rc-lideranca">
+                            <option value="">Todas</option>
+                            <option>MEMBRO</option>
+                            <option>Presbítero</option>
+                            <option>Diácono</option>
+                            <option>Pastor</option>
+                            <option>Líder de Célula</option>
+                            <option>Líder de Ministério</option>
+                            <option>Ministério de Louvor</option>
+                        </select>
+                    </div>
+                </div>
+            `;
+          break;
       }
 
       container.innerHTML = `
@@ -7288,6 +7450,31 @@ async function atualizarDatalistFamilia() {
     console.log(`Datalist preenchido com ${todos.length} nomes.`);
   }
 }, 200);
+  } else if (_repSubTipo === 'por_categoria') {
+    titulo = 'Relatório por Categoria de Entrada';
+    filtrosHTML = `
+      <div class="form-group"><label>Data Inicial</label><input type="date" id="rf-ini" value="${new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().slice(0, 10)}"></div>
+      <div class="form-group"><label>Data Final</label><input type="date" id="rf-fim" value="${new Date().toISOString().slice(0, 10)}"></div>
+      <div class="form-group"><label>Categoria</label>
+        <select id="rf-categoria-filtro">
+          <option value="">Todas as Categorias</option>
+          <option value="Dízimo">Dízimo</option>
+          <option value="Oferta">Oferta</option>
+          <option value="Missões">Missões</option>
+          <option value="Oferta Especial">Oferta Especial</option>
+          <option value="Fundo Social">Fundo Social</option>
+          <option value="Construção">Construção</option>
+          <option value="Outros">Outros</option>
+        </select>
+      </div>
+      <div class="form-group"><label>Visualização</label>
+        <select id="rf-cat-visao">
+          <option value="resumo">Resumo por Categoria</option>
+          <option value="mensal">Evolução Mensal</option>
+          <option value="detalhado">Detalhado (por pessoa)</option>
+        </select>
+      </div>
+    `;
   } else if (_repSubTipo === 'contribuicao_lideranca' || _repSubTipo === 'contribuicao_ministerio') {
     titulo = _repSubTipo === 'contribuicao_lideranca' ? 'Contribuição por Liderança' : 'Contribuição por Ministério';
     const opcoes = _repSubTipo === 'contribuicao_lideranca'
@@ -7456,7 +7643,51 @@ async function atualizarDatalistFamilia() {
     }
 
     case 'combinado': {
-      subTitulo = 'LISTA COMBINADA DE MEMBROS';
+      const idadeMin = parseInt(document.getElementById('rc-idade-ini')?.value);
+      const idadeMax = parseInt(document.getElementById('rc-idade-fim')?.value);
+      const sexo = document.getElementById('rc-sexo')?.value;
+      const cat = document.getElementById('rc-categoria')?.value;
+      const civil = document.getElementById('rc-civil')?.value;
+      const modo = document.getElementById('rc-modo')?.value;
+      const lid = document.getElementById('rc-lideranca')?.value;
+
+      const partesTitulo = [];
+
+      if (!isNaN(idadeMin)) {
+        filtered = filtered.filter(m => idadeDe(m.data_nascimento) >= idadeMin);
+        partesTitulo.push(`Idade ≥ ${idadeMin}`);
+      }
+      if (!isNaN(idadeMax)) {
+        filtered = filtered.filter(m => {
+          const idade = idadeDe(m.data_nascimento);
+          return idade >= 0 && idade <= idadeMax;
+        });
+        partesTitulo.push(`Idade ≤ ${idadeMax}`);
+      }
+      if (sexo) {
+        filtered = filtered.filter(m => m.sexo === sexo);
+        partesTitulo.push(sexo === 'M' ? 'Masculino' : 'Feminino');
+      }
+      if (cat) {
+        filtered = filtered.filter(m => m.categoria === cat);
+        partesTitulo.push(cat);
+      }
+      if (civil) {
+        filtered = filtered.filter(m => m.estado_civil === civil);
+        partesTitulo.push(civil);
+      }
+      if (modo) {
+        filtered = filtered.filter(m => m.modo_admissao === modo);
+        partesTitulo.push(modo);
+      }
+      if (lid) {
+        filtered = filtered.filter(m => m.lideranca === lid);
+        partesTitulo.push(lid);
+      }
+
+      subTitulo = partesTitulo.length
+        ? `RELATÓRIO COMBINADO (${partesTitulo.join(' + ')})`
+        : 'RELATÓRIO COMBINADO (SEM FILTROS)';
       break;
     }
 
@@ -7816,7 +8047,7 @@ async function relatoriosGerarFinanceiro(res) {
         }).join('');
         return `
           <div class="section-bar" style="background:${cor}; color:white; padding:8px; margin-top:20px;">${titulo.toUpperCase()}</div>
-          <table class="tabela">
+          <table class="tabela balancete-analitico">
             <thead>
               <tr>
                 <th>DATA</th>
@@ -8011,8 +8242,301 @@ async function relatoriosGerarFinanceiro(res) {
     return;
   }
 
-  // Se nenhum subtipo conhecido
-  res.innerHTML = '<div class="vazio-central">Tipo de relatório não implementado para esta opção.</div>';
+// ========== 6. POR CATEGORIA (Dízimos, Ofertas, Missões...) ==========
+if (_repSubTipo === 'por_categoria') {
+  try {
+    const ini = document.getElementById('rf-ini')?.value;
+    const fim = document.getElementById('rf-fim')?.value;
+    const catFiltro = document.getElementById('rf-categoria-filtro')?.value || '';
+    const visao = document.getElementById('rf-cat-visao')?.value || 'resumo';
+
+    if (!ini || !fim) {
+      res.innerHTML = '<div class="erro">Selecione o período.</div>';
+      return;
+    }
+
+    // Helpers
+    const fd = (d) => d ? new Date(d + 'T12:00:00').toLocaleDateString('pt-BR') : '';
+    const fmt = (v) => Number(v || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+    const dataEmissao = new Date().toLocaleString('pt-BR');
+
+    const addOneDay = (dateStr) => {
+      const d = new Date(dateStr + 'T12:00:00');
+      d.setDate(d.getDate() + 1);
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      return `${y}-${m}-${day}`;
+    };
+
+    // Se "data" no banco for timestamp, isso resolve o problema do fim do período
+    const dataInicio = `${ini} 00:00:00`;
+    const dataFimExclusiva = `${addOneDay(fim)} 00:00:00`;
+
+    let query = supabase
+  .from('lancamentos')
+  .select('*, membros(nome), visitantes(nome)')
+  .gte('data', ini)
+  .lte('data', fim)
+  .order('data');
+
+const { data: todosLancamentos, error } = await query;
+
+if (error) {
+  res.innerHTML = '<div class="erro">Erro ao buscar dados: ' + error.message + '</div>';
+  return;
+}
+
+// filtra em JS igual ao balancete
+let lancamentos = (todosLancamentos || []).filter(l => l.tipo === 'entrada');
+
+if (catFiltro) {
+  lancamentos = lancamentos.filter(l => (l.categoria || '') === catFiltro);
+}
+
+console.log('Consulta executada. Período:', ini, 'a', fim);
+console.log('Filtro categoria:', catFiltro);
+console.log('Total bruto encontrado:', todosLancamentos?.length || 0);
+console.log('Total após filtro entrada:', lancamentos?.length || 0);
+
+if (lancamentos?.length > 0) {
+  console.log('Primeiro lançamento:', lancamentos[0]);
+  console.log('Categorias presentes:', [...new Set(lancamentos.map(l => l.categoria))]);
+}
+
+    let html = '';
+
+    // Cores por categoria
+    const coresCat = {
+      'Dízimo': '#065f46',
+      'Oferta': '#2563eb',
+      'Missões': '#7c3aed',
+      'Oferta Especial': '#d97706',
+      'Fundo Social': '#db2777',
+      'Construção': '#b45309',
+      'Outros': '#64748b'
+    };
+    const corDe = (c) => coresCat[c] || '#475569';
+
+    // ---------- VISÃO RESUMO ----------
+    if (visao === 'resumo') {
+      const cats = {};
+      let totalGeral = 0;
+
+      lancamentos.forEach(l => {
+        const c = l.categoria || 'Outros';
+        const valor = Number(l.valor) || 0;
+
+        if (!cats[c]) cats[c] = { total: 0, qtd: 0 };
+        cats[c].total += valor;
+        cats[c].qtd++;
+        totalGeral += valor;
+      });
+
+      const rows = Object.entries(cats)
+        .sort((a, b) => b[1].total - a[1].total)
+        .map(([c, v]) => {
+          const pct = totalGeral > 0 ? ((v.total / totalGeral) * 100).toFixed(1) : '0';
+          const bar = `<div style="background:${corDe(c)};height:8px;border-radius:4px;width:${pct}%;min-width:4px;display:inline-block;vertical-align:middle"></div>`;
+          return `<tr>
+            <td>
+              <span style="display:inline-block;width:12px;height:12px;border-radius:3px;background:${corDe(c)};vertical-align:middle;margin-right:8px"></span>${c}
+            </td>
+            <td style="text-align:center">${v.qtd}</td>
+            <td class="valor-cel">${fmt(v.total)}</td>
+            <td style="min-width:120px">${bar} <span style="font-size:0.8rem;color:#64748b;margin-left:6px">${pct}%</span></td>
+          </tr>`;
+        }).join('');
+
+      html = `<div id="relatorio-tabela-container">
+        <div class="section-bar geral">RESUMO POR CATEGORIA (${fd(ini)} a ${fd(fim)})</div>
+        <table class="tabela">
+          <thead>
+            <tr>
+              <th>CATEGORIA</th>
+              <th style="text-align:center">QTD</th>
+              <th>TOTAL</th>
+              <th>PARTICIPAÇÃO</th>
+            </tr>
+          </thead>
+          <tbody>${rows || '<tr><td colspan="4">Nenhum lançamento encontrado.</td></tr>'}</tbody>
+          <tfoot>
+            <tr style="font-weight:bold;background:#f1f5f9">
+              <td>TOTAL GERAL</td>
+              <td style="text-align:center">${lancamentos.length}</td>
+              <td class="valor-cel">${fmt(totalGeral)}</td>
+              <td></td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>`;
+
+    // ---------- VISÃO MENSAL ----------
+    } else if (visao === 'mensal') {
+      const inicio = new Date(ini + 'T12:00:00');
+      const fimDate = new Date(fim + 'T12:00:00');
+      const mesesLabels = [];
+      const cur = new Date(inicio.getFullYear(), inicio.getMonth(), 1);
+
+      while (cur <= fimDate) {
+        mesesLabels.push(cur.toLocaleString('pt-BR', { month: 'short', year: '2-digit' }));
+        cur.setMonth(cur.getMonth() + 1);
+      }
+
+      const catSet = new Set();
+      const dados = {};
+
+      lancamentos.forEach(l => {
+        const c = l.categoria || 'Outros';
+        catSet.add(c);
+
+        const d = new Date(String(l.data).slice(0, 10) + 'T12:00:00');
+        const idx = (d.getFullYear() - inicio.getFullYear()) * 12 + (d.getMonth() - inicio.getMonth());
+
+        if (!dados[c]) dados[c] = new Array(mesesLabels.length).fill(0);
+        if (idx >= 0 && idx < mesesLabels.length) {
+          dados[c][idx] += Number(l.valor) || 0;
+        }
+      });
+
+      const cats = Array.from(catSet).sort();
+      const totaisMes = new Array(mesesLabels.length).fill(0);
+
+      cats.forEach(c => {
+        (dados[c] || []).forEach((v, i) => { totaisMes[i] += v; });
+      });
+
+      const rows = cats.map(c => {
+        const totalCat = (dados[c] || []).reduce((s, v) => s + v, 0);
+        return `<tr>
+          <td>
+            <span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:${corDe(c)};vertical-align:middle;margin-right:6px"></span>${c}
+          </td>
+          ${(dados[c] || new Array(mesesLabels.length).fill(0)).map(v =>
+            `<td class="valor-cel" style="font-size:0.8rem">${v > 0 ? fmt(v) : '-'}</td>`
+          ).join('')}
+          <td class="valor-cel" style="font-weight:bold">${fmt(totalCat)}</td>
+        </tr>`;
+      }).join('');
+
+      html = `<div id="relatorio-tabela-container" style="overflow-x:auto">
+        <div class="section-bar geral">EVOLUÇÃO MENSAL POR CATEGORIA (${fd(ini)} a ${fd(fim)})</div>
+        <table class="tabela">
+          <thead>
+            <tr>
+              <th>CATEGORIA</th>
+              ${mesesLabels.map(m => `<th style="text-align:right;font-size:0.8rem">${m.toUpperCase()}</th>`).join('')}
+              <th>TOTAL</th>
+            </tr>
+          </thead>
+          <tbody>${rows || `<tr><td colspan="${mesesLabels.length + 2}">Nenhum dado encontrado.</td></tr>`}</tbody>
+          <tfoot>
+            <tr style="font-weight:bold;background:#f1f5f9">
+              <td>TOTAL</td>
+              ${totaisMes.map(v => `<td class="valor-cel" style="font-size:0.8rem">${fmt(v)}</td>`).join('')}
+              <td class="valor-cel">${fmt(totaisMes.reduce((s, v) => s + v, 0))}</td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>`;
+
+    // ---------- VISÃO DETALHADO ----------
+    } else if (visao === 'detalhado') {
+      let total = 0;
+
+      const rows = lancamentos.map(l => {
+        const valor = Number(l.valor) || 0;
+        total += valor;
+
+        const nome = l.membros?.nome || l.visitantes?.nome || 'Anônimo';
+
+        return `<tr>
+          <td>${fd(String(l.data).slice(0, 10))}</td>
+          <td>${nome}</td>
+          <td>
+            <span style="background:${corDe(l.categoria || 'Outros')}22;color:${corDe(l.categoria || 'Outros')};padding:2px 8px;border-radius:100px;font-size:0.78rem;font-weight:600">
+              ${l.categoria || 'Outros'}
+            </span>
+          </td>
+          <td>${l.descricao || '-'}</td>
+          <td class="valor-cel">${fmt(valor)}</td>
+        </tr>`;
+      }).join('');
+
+      html = `<div id="relatorio-tabela-container">
+        <div class="section-bar geral">DETALHAMENTO POR CATEGORIA (${fd(ini)} a ${fd(fim)})</div>
+        <table class="tabela">
+          <thead>
+            <tr>
+              <th>DATA</th>
+              <th>PESSOA</th>
+              <th>CATEGORIA</th>
+              <th>DESCRIÇÃO</th>
+              <th>VALOR</th>
+            </tr>
+          </thead>
+          <tbody>${rows || '<tr><td colspan="5">Nenhum lançamento encontrado.</td></tr>'}</tbody>
+          <tfoot>
+            <tr style="font-weight:bold;background:#f1f5f9">
+              <td colspan="4">TOTAL</td>
+              <td class="valor-cel">${fmt(total)}</td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>`;
+    }
+
+    let nomeIgreja = 'Igreja Presbiteriana';
+    if (typeof branding !== 'undefined' && branding?.nome_igreja) {
+      nomeIgreja = branding.nome_igreja;
+    }
+
+    const btnExportar = `<button class="btn-secondary" onclick="exportarTabelaExcel()">📊 Exportar Excel</button>`;
+
+    if (typeof window.exportarTabelaExcel === 'undefined') {
+      window.exportarTabelaExcel = function () {
+        const container = document.getElementById('relatorio-tabela-container');
+        if (!container) return;
+
+        const tabela = container.querySelector('table');
+        if (!tabela) return;
+
+        const htmlContent = tabela.outerHTML;
+        const blob = new Blob([htmlContent], { type: 'application/vnd.ms-excel' });
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = `relatorio_categorias_${ini}_${fim}.xls`;
+        link.click();
+        URL.revokeObjectURL(link.href);
+      };
+    }
+
+    res.innerHTML = `
+      <div class="no-print" style="display:flex; gap:10px; margin-bottom:15px">
+        ${btnExportar}
+        <button class="btn-primary" onclick="window.print()">🖨️ Imprimir</button>
+      </div>
+
+      <div class="print-header-bar">
+        <h1>${nomeIgreja}</h1>
+        <span style="font-size:9pt; font-weight:bold">
+          RELATÓRIO POR CATEGORIA${catFiltro ? ' — ' + catFiltro.toUpperCase() : ''} (${fd(ini)} a ${fd(fim)})
+        </span>
+      </div>
+
+      ${html}
+
+      <div class="print-footer">Gerado em ${dataEmissao}</div>
+    `;
+  } catch (err) {
+    console.error('Erro no relatório por categoria:', err);
+    res.innerHTML = '<div class="erro">Erro interno ao gerar relatório. Verifique o console.</div>';
+  }
+  return;
+}
+
+// Se nenhum subtipo conhecido
+res.innerHTML = '<div class="vazio-central">Tipo de relatório não implementado para esta opção.</div>';
 }
 
 window._rep = {
