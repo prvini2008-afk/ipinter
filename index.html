@@ -6837,6 +6837,18 @@ async function atualizarDatalistFamilia() {
                         background: #2c3e50 !important;
                         color: white !important;
                     }
+                    .ficha-secao {
+                        display: block !important;
+                        width: 100% !important;
+                        background: #2c3e50 !important;
+                        color: white !important;
+                        font-weight: bold;
+                        padding: 5pt 8pt !important;
+                        margin: 10pt 0 10pt 0 !important;
+                        font-size: 9pt !important;
+                        text-transform: uppercase;
+                    }
+                    .ficha-cadastral { font-size: 9pt !important; }
                     .valor-cel { 
                         text-align: right !important; 
                         white-space: nowrap !important; 
@@ -6880,6 +6892,18 @@ async function atualizarDatalistFamilia() {
                     border-radius: 4px;
                 }
                 .print-header-bar, .print-footer { display: none; }
+                .ficha-secao {
+                    display: block;
+                    width: 100%;
+                    background: var(--primary);
+                    color: white;
+                    font-weight: 600;
+                    padding: 8px 16px;
+                    margin: 20px 0 12px 0;
+                    border-radius: 4px;
+                    text-transform: uppercase;
+                    font-size: 0.85rem;
+                }
                 
                 /* Estilo para a tabela de balancete na tela */
                 table.tabela.balancete-analitico {
@@ -7147,8 +7171,11 @@ async function atualizarDatalistFamilia() {
                     <div class="rep-card" onclick="window._rep.selecionarSub('casais')"><i data-lucide="users-2"></i><h4>Lista de Casais</h4></div>
                     <div class="rep-card" onclick="window._rep.selecionarSub('todos')"><i data-lucide="file-text"></i><h4>Todos Membros</h4></div>
                     <div class="rep-card" onclick="window._rep.selecionarSub('combinado')"><i data-lucide="layers"></i><h4>Combinado</h4></div>
+                    <div class="rep-card" onclick="window._rep.selecionarSub('ficha_cadastral')"><i data-lucide="clipboard-list"></i><h4>Ficha Cadastral</h4></div>
                 </div>
             `;
+        } else if (_repSubTipo === 'ficha_cadastral') {
+          relatoriosGerarFichaCadastral(container);
         } else {
           relatoriosRenderizarFiltrosMembros(container);
         }
@@ -7207,6 +7234,85 @@ async function atualizarDatalistFamilia() {
   if (resDiv) resDiv.innerHTML = '';
   relatoriosRenderizarSessao();
 }
+
+    // FICHA CADASTRAL EM BRANCO - PARA O NOVO MEMBRO PREENCHER À MÃO
+    async function relatoriosGerarFichaCadastral(container) {
+      container.innerHTML = '';
+      const res = document.getElementById('relatorio-resultado');
+      if (!res) return;
+
+      const { data: branding } = await supabase.from('configuracoes').select('*').single();
+      const dataEmissao = new Date().toLocaleString('pt-BR');
+
+      const campo = (label, largura = '1') => `
+        <div style="flex: ${largura}; border-bottom: 1px solid #333; padding: 6px 4px 4px;">
+          <div style="font-size: 9pt; color: #555; margin-bottom: 14px;">${label}</div>
+        </div>
+      `;
+
+      res.innerHTML = `
+        <div class="no-print" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; background:#f8fafc; padding:10px; border-radius:8px">
+          <button class="btn-secondary" onclick="window._rep.selecionarSub(null)">← Voltar</button>
+          <button class="btn-primary" onclick="window.print()">🖨️ Imprimir</button>
+        </div>
+        <div class="print-header-bar">
+          <h1>${branding?.nome_igreja || 'Igreja Presbiteriana'}</h1>
+          <span style="font-size:9pt; font-weight:bold">FICHA CADASTRAL DE NOVO MEMBRO</span>
+        </div>
+        <div id="relatorio-tabela-container" class="ficha-cadastral" style="font-family:'Calibri Light','Calibri',sans-serif; max-width: 900px; margin: 0 auto;">
+
+          <div class="ficha-secao">Informações Pessoais</div>
+          <div style="display:flex; gap:14px;">
+            ${campo('Nome completo', '3')}
+          </div>
+          <div style="display:flex; gap:14px;">
+            ${campo('Email')}
+            ${campo('Celular / WhatsApp')}
+            ${campo('Telefone fixo / Recado')}
+          </div>
+          <div style="display:flex; gap:14px;">
+            ${campo('Data de nascimento')}
+            ${campo('Sexo')}
+            ${campo('Estado civil')}
+            ${campo('Data de casamento')}
+          </div>
+          <div style="display:flex; gap:14px;">
+            ${campo('Naturalidade (cidade/UF onde nasceu)', '2')}
+            ${campo('Profissão')}
+          </div>
+          <div style="display:flex; gap:14px;">
+            ${campo('Escolaridade', '2')}
+          </div>
+
+          <div class="ficha-secao" style="margin-top:16px;">Endereço</div>
+          <div style="display:flex; gap:14px;">
+            ${campo('Logradouro / Rua', '3')}
+            ${campo('Número')}
+          </div>
+          <div style="display:flex; gap:14px;">
+            ${campo('Bairro')}
+            ${campo('Cidade / UF')}
+          </div>
+
+          <div class="ficha-secao" style="margin-top:16px;">Família</div>
+          <div style="display:flex; gap:14px;">
+            ${campo('Nome do cônjuge', '3')}
+          </div>
+          <div style="display:flex; gap:14px;">
+            ${campo('Nome do pai', '3')}
+          </div>
+          <div style="display:flex; gap:14px;">
+            ${campo('Nome da mãe', '3')}
+          </div>
+
+          <div style="margin-top:40px; display:flex; justify-content:space-between; align-items:flex-end;">
+            <div style="flex:1; border-top:1px solid #333; padding-top:6px; text-align:center; font-size:9pt; color:#555; margin-right:30px;">Assinatura do novo membro</div>
+            <div style="flex:1; border-top:1px solid #333; padding-top:6px; text-align:center; font-size:9pt; color:#555;">Data</div>
+          </div>
+        </div>
+        <div class="print-footer">Ficha gerada em ${dataEmissao} - Sistema de Gestão Eclesiástica</div>
+      `;
+    }
 
     function relatoriosRenderizarFiltrosMembros(container) {
       let filtrosHTML = '';
